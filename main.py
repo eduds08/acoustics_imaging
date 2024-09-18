@@ -1,12 +1,13 @@
 import numpy as np
 from TimeReversal import TimeReversal
 from InputTest import InputTest
+import matplotlib.pyplot as plt
 
 input_test = InputTest()
 input_test.load_data_acude(file='./acude/azulPerpendicular1_Variables.mat')
 
-size_meters_z = np.float32(300)
-size_meters_x = np.float32(300)
+size_meters_z = np.float32(250)
+size_meters_x = np.float32(250)
 dz = np.float32(3e-1)
 dx = np.float32(3e-1)
 
@@ -20,7 +21,7 @@ c = np.full(grid_size_shape, c, dtype=np.float32)
 
 # input_test.plot_bscan()
 
-input_test.select_bscan_interval(min_time=None, max_time=50000)
+input_test.select_bscan_interval(min_time=None, max_time=45000)
 
 # input_test.plot_bscan()
 
@@ -34,6 +35,8 @@ input_test.select_bscan_interval(min_time=None, max_time=50000)
 # recorded_pressure_bscan = recorded_pressure_bscan[:, :50000]
 # plot_imshow(np.abs(recorded_pressure_bscan), 'Raw BScan', {}, aspect='auto')
 
+
+
 simulation_config = {
     'dt': input_test.dt,
     'c': c,
@@ -42,7 +45,7 @@ simulation_config = {
     'grid_size_z': grid_size_z,
     'grid_size_x': grid_size_x,
     'total_time': input_test.total_time,
-    'animation_step': np.int32(80),
+    'animation_step': np.int32(100),
 }
 
 tr_config = {
@@ -51,6 +54,15 @@ tr_config = {
 }
 
 simulation_config.update(tr_config)
+
+l2 = np.load('./TimeReversal/l2_norm.npy')
+
+# plt.figure()
+# plt.imshow(l2, aspect='auto')
+# plt.title(f'L2-Norm')
+# plt.grid()
+# plt.colorbar()
+# plt.show()
 
 tr_sim = TimeReversal(**simulation_config)
 tr_sim.run(create_animation=False, cmap='bwr')

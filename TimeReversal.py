@@ -33,7 +33,14 @@ class TimeReversal(SimulationConfig):
 
         self.flipped_bscan = self.bscan[:, ::-1].astype(np.float32)
 
-        # input_test.plot_bscan()
+        plt.figure()
+        plt.imshow(np.abs(self.flipped_bscan), aspect='auto')
+        plt.xlabel('Time')
+        plt.ylabel('Microphone')
+        plt.title(f'Flipped B-Scan ({self.microphones_amount}x{self.total_time})')
+        plt.grid()
+        plt.colorbar()
+        plt.show()
 
         # self.padding_zeros = simulation_config['padding_zeros']
         # padded_recorded_pressure = np.pad(flipped_recorded_pressure, (0, self.padding_zeros), mode='constant')
@@ -124,7 +131,6 @@ class TimeReversal(SimulationConfig):
         compute_after_forward = self.wgpu_handler.create_compute_pipeline("after_forward")
         compute_backward_diff = self.wgpu_handler.create_compute_pipeline("backward_diff")
         compute_after_backward = self.wgpu_handler.create_compute_pipeline("after_backward")
-        compute_lap = self.wgpu_handler.create_compute_pipeline("lap")
         compute_sim = self.wgpu_handler.create_compute_pipeline("sim")
         compute_incr_time = self.wgpu_handler.create_compute_pipeline("incr_time")
 
@@ -140,18 +146,20 @@ class TimeReversal(SimulationConfig):
         # l2_norm = np.zeros_like(self.p_future)
 
         # GUI (animação)
-        vminmax = 1e3
-        vscale = 1
-        surface_format = pg.QtGui.QSurfaceFormat()
-        surface_format.setSwapInterval(0)
-        pg.QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
-        app = pg.QtWidgets.QApplication([])
-        raw_image_widget = RawImageGLWidget()
-        raw_image_widget.setWindowFlags(pg.QtCore.Qt.WindowType.FramelessWindowHint)
-        raw_image_widget.resize(vscale * self.grid_size_x, vscale * self.grid_size_z)
-        raw_image_widget.show()
-        colormap = plt.get_cmap("bwr")
-        norm = matplotlib.colors.Normalize(vmin=-vminmax, vmax=vminmax)
+        # vminmax = 1e3
+        # vscale = 1
+        # surface_format = pg.QtGui.QSurfaceFormat()
+        # surface_format.setSwapInterval(0)
+        # pg.QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
+        # app = pg.QtWidgets.QApplication([])
+        # raw_image_widget = RawImageGLWidget()
+        # raw_image_widget.setWindowFlags(pg.QtCore.Qt.WindowType.FramelessWindowHint)
+        # raw_image_widget.resize(vscale * self.grid_size_x, vscale * self.grid_size_z)
+        # raw_image_widget.show()
+        # colormap = plt.get_cmap("bwr")
+        # norm = matplotlib.colors.Normalize(vmin=-vminmax, vmax=vminmax)
+
+        l2_norm = np.zeros(self.grid_size_shape, dtype=np.float32)
 
         for i in range(self.total_time):
             command_encoder = self.wgpu_handler.device.create_command_encoder()
@@ -176,10 +184,6 @@ class TimeReversal(SimulationConfig):
             compute_pass.dispatch_workgroups(self.grid_size_z // self.wgpu_handler.ws[0],
                                              self.grid_size_x // self.wgpu_handler.ws[1])
 
-            # compute_pass.set_pipeline(compute_lap)
-            # compute_pass.dispatch_workgroups(self.grid_size_z // self.wgpu_handler.ws[0],
-            #                                  self.grid_size_x // self.wgpu_handler.ws[1])
-
             compute_pass.set_pipeline(compute_sim)
             compute_pass.dispatch_workgroups(self.grid_size_z // self.wgpu_handler.ws[0],
                                              self.grid_size_x // self.wgpu_handler.ws[1])
@@ -195,12 +199,12 @@ class TimeReversal(SimulationConfig):
                              .reshape(self.grid_size_shape))
 
             # Atualiza a GUI
-            if not i % self.animation_step:
-                raw_image_widget.setImage(colormap(norm(self.p_future.T)), levels=[0, 1])
-                app.processEvents()
-                plt.pause(1e-12)
+            # if not i % self.animation_step:
+            #     raw_image_widget.setImage(colormap(norm(self.p_future.T)), levels=[0, 1])
+            #     app.processEvents()
+            #     plt.pause(1e-12)
 
-            # l2_norm += np.square(self.p_future)
+            l2_norm += np.square(self.p_future)
             #
             # if i % self.animation_step == 0:
             #     if create_animation:
@@ -212,15 +216,15 @@ class TimeReversal(SimulationConfig):
             #             **plt_kwargs,
             #         )
             #
-            # if i % 100 == 0:
-            #     print(f'Time Reversal - i={i}')
+            if i % 100 == 0:
+                print(f'Time Reversal - i={i}')
 
-        # print('Time Reversal finished.')
-        #
-        # l2_norm = np.sqrt(l2_norm)
-        #
-        # np.save(f'{self.folder}/l2_norm.npy', l2_norm)
-        #
+        print('Time Reversal finished.')
+
+        l2_norm = np.sqrt(l2_norm)
+
+        np.save(f'./TimeReversal/l2_norm.npy', l2_norm)
+
         # if create_animation:
         #     create_ffmpeg_animation(self.animation_folder, 'a.mp4', self.tr_total_time, self.animation_step)
 

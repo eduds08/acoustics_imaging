@@ -154,22 +154,6 @@ fn after_backward(@builtin(global_invocation_id) index: vec3<u32>) {
 
 @compute
 @workgroup_size(wsz, wsx)
-fn lap(@builtin(global_invocation_id) index: vec3<u32>) {
-    let z: i32 = i32(index.x);
-    let x: i32 = i32(index.y);
-
-    if (z >= 2 && z <= infoI32.grid_size_z - 3)
-    {
-        dp_2_z[zx(z, x)] = ((-1./12.) * p_present[zx(z + 2, x)] + (4./3.) * p_present[zx(z + 1, x)] - (5./2.) * p_present[zx(z, x)] + (4./3.) * p_present[zx(z - 1, x)] - (1./12.) * p_present[zx(z - 2, x)]) / (infoF32.dz * infoF32.dz);
-    }
-    if (x >= 2 && x <= infoI32.grid_size_x - 3)
-    {
-        dp_2_x[zx(z, x)] = ((-1./12.) * p_present[zx(z, x + 2)] + (4./3.) * p_present[zx(z, x + 1)] - (5./2.) * p_present[zx(z, x)] + (4./3.) * p_present[zx(z, x - 1)] - (1./12.) * p_present[zx(z, x - 2)]) / (infoF32.dx * infoF32.dx);
-    }
-}
-
-@compute
-@workgroup_size(wsz, wsx)
 fn sim(@builtin(global_invocation_id) index: vec3<u32>) {
     let z: i32 = i32(index.x);
     let x: i32 = i32(index.y);

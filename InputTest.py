@@ -30,6 +30,18 @@ class InputTest:
     def load_data_panther(self, folder: str):
         pass
 
+        # Add zeros, according to gate_start, to the beginning of array
+        gate_start_value = np.float32(0)
+        if selected_test[0] != './panther/teste7_results':
+            with open(f'{selected_test[0]}/inspection_params.txt', 'r') as f:
+                for line in f:
+                    if line.startswith('gate_start'):
+                        gate_start_value = np.float32(line.split('=')[1].strip())
+                        break
+        padding_zeros = np.int32(gate_start_value / sample_time)
+        padding_zeros = np.zeros((len(recorded_pressure_bscan[:, 0]), padding_zeros))
+        recorded_pressure_bscan = np.hstack((padding_zeros, recorded_pressure_bscan), dtype=np.float32)
+
     def select_bscan_interval(self, min_time=None, max_time=None):
         if min_time is None and max_time is not None:
             self.bscan = self.bscan[:, :max_time]
