@@ -19,8 +19,6 @@ class SimulationConfig:
 
         self.animation_step = simulation_config['animation_step']
 
-        print(f'Total time: {self.total_time}')
-
         print(f'CFL-Z (np.amax(c)): {np.amax(self.c) * (self.dt / self.dz)}')
         print(f'CFL-X (np.amax(c)): {np.amax(self.c) * (self.dt / self.dx)}')
 
@@ -38,17 +36,17 @@ class SimulationConfig:
         self.dp_2_x = np.zeros(self.grid_size_shape, dtype=np.float32)
 
         # CPML
-        absorption_layer_size = np.int32(15)
-        damping_coefficient = np.float32(3e6)
+        self.absorption_layer_size = np.int32(15)
+        self.damping_coefficient = np.float32(3e6)
 
         x, z = np.meshgrid(np.arange(self.grid_size_x, dtype=np.float32), np.arange(self.grid_size_z, dtype=np.float32))
 
         # Choose absorbing boundaries
-        is_z_absorption = (z > self.grid_size_z - absorption_layer_size) | (z < absorption_layer_size)
-        is_x_absorption = (x > self.grid_size_x - absorption_layer_size)
+        self.is_z_absorption = (z > self.grid_size_z - self.absorption_layer_size)
+        self.is_x_absorption = (x > self.grid_size_x - self.absorption_layer_size) | (x < self.absorption_layer_size)
 
-        absorption_coefficient = np.exp(
-            -(damping_coefficient * (np.arange(absorption_layer_size) / absorption_layer_size) ** 2) * self.dt
+        self.absorption_coefficient = np.exp(
+            -(self.damping_coefficient * (np.arange(self.absorption_layer_size) / self.absorption_layer_size) ** 2) * self.dt
         ).astype(np.float32)
 
         self.psi_z = np.zeros(self.grid_size_shape, dtype=np.float32)
@@ -59,11 +57,11 @@ class SimulationConfig:
         self.absorption_z = np.ones(self.grid_size_shape, dtype=np.float32)
         self.absorption_x = np.ones(self.grid_size_shape, dtype=np.float32)
 
-        self.absorption_z[:absorption_layer_size, :] = absorption_coefficient[:, np.newaxis][::-1]
-        self.absorption_z[-absorption_layer_size:, :] = absorption_coefficient[:, np.newaxis]
-        self.absorption_x[:, :absorption_layer_size] = absorption_coefficient[::-1]
-        self.absorption_x[:, -absorption_layer_size:] = absorption_coefficient
+        self.absorption_z[:self.absorption_layer_size, :] = self.absorption_coefficient[:, np.newaxis][::-1]
+        self.absorption_z[-self.absorption_layer_size:, :] = self.absorption_coefficient[:, np.newaxis]
+        self.absorption_x[:, :self.absorption_layer_size] = self.absorption_coefficient[::-1]
+        self.absorption_x[:, -self.absorption_layer_size:] = self.absorption_coefficient
 
         # Goes to GPU
-        self.is_z_absorption_int = is_z_absorption.astype(np.int32)
-        self.is_x_absorption_int = is_x_absorption.astype(np.int32)
+        self.is_z_absorption_int = self.is_z_absorption.astype(np.int32)
+        self.is_x_absorption_int = self.is_x_absorption.astype(np.int32)

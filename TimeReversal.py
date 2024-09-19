@@ -14,36 +14,26 @@ class TimeReversal(SimulationConfig):
     def __init__(self, **simulation_config):
         super().__init__(**simulation_config)
 
-        self.wgpu_handler = None
-
         input_test: InputTest = simulation_config['input_test']
 
         self.bscan = input_test.bscan
         self.microphones_distance = input_test.microphones_distance
         self.microphones_amount = input_test.microphones_amount
+        self.total_time = input_test.total_time
 
-        # self.setup_folders()
+        print(f'Total time: {self.total_time}')
 
-        self.microphone_z = []
+        self.microphone_x = []
         for rp in range(self.microphones_amount):
-            self.microphone_z.append((self.microphones_distance * rp) / self.dz)
-        self.microphone_z = (np.int32(np.asarray(self.microphone_z))
-                           + np.int32((self.grid_size_z - self.microphone_z[-1]) / 2))
-        self.microphone_x = np.full(self.microphones_amount, 0, dtype=np.int32)
+            self.microphone_x.append((self.microphones_distance * rp) / self.dz)
+        self.microphone_x = (np.int32(np.asarray(self.microphone_x))
+                           + np.int32((self.grid_size_x - self.microphone_x[-1]) / 2))
+        self.microphone_z = np.full(self.microphones_amount, 1, dtype=np.int32)  # Não colocar microfones no índice 0.
+
+        np.save('./TimeReversal/emitter_z.npy', self.microphone_z[input_test.fmc_emitter])
+        np.save('./TimeReversal/emitter_x.npy', self.microphone_x[input_test.fmc_emitter])
 
         self.flipped_bscan = self.bscan[:, ::-1].astype(np.float32)
-
-        plt.figure()
-        plt.imshow(np.abs(self.flipped_bscan), aspect='auto')
-        plt.xlabel('Time')
-        plt.ylabel('Microphone')
-        plt.title(f'Flipped B-Scan ({self.microphones_amount}x{self.total_time})')
-        plt.grid()
-        plt.colorbar()
-        plt.show()
-
-        # self.padding_zeros = simulation_config['padding_zeros']
-        # padded_recorded_pressure = np.pad(flipped_recorded_pressure, (0, self.padding_zeros), mode='constant')
 
         self.info_i32 = np.array(
             [
@@ -64,6 +54,7 @@ class TimeReversal(SimulationConfig):
             dtype=np.float32
         )
 
+        self.wgpu_handler = None
         self.config_gpu()
 
     def config_gpu(self):
@@ -126,7 +117,7 @@ class TimeReversal(SimulationConfig):
         shader_lines = list(shader_string.split('\n'))
         self.wgpu_handler.create_buffers(wgsl_data, shader_lines)
 
-    def run(self, create_animation: bool, **plt_kwargs):
+    def run(self, real_time_animation: bool):
         compute_forward_diff = self.wgpu_handler.create_compute_pipeline("forward_diff")
         compute_after_forward = self.wgpu_handler.create_compute_pipeline("after_forward")
         compute_backward_diff = self.wgpu_handler.create_compute_pipeline("backward_diff")
@@ -134,30 +125,20 @@ class TimeReversal(SimulationConfig):
         compute_sim = self.wgpu_handler.create_compute_pipeline("sim")
         compute_incr_time = self.wgpu_handler.create_compute_pipeline("incr_time")
 
-        # if create_animation:
-        #     clear_folder(self.animation_folder)
-
-        # scatter_kwargs = {
-        #     'microphones_amount': self.microphones_amount,
-        #     'microphone_z': self.microphone_z,
-        #     'microphone_x': self.microphone_x,
-        # }
-        #
-        # l2_norm = np.zeros_like(self.p_future)
-
         # GUI (animação)
-        # vminmax = 1e3
-        # vscale = 1
-        # surface_format = pg.QtGui.QSurfaceFormat()
-        # surface_format.setSwapInterval(0)
-        # pg.QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
-        # app = pg.QtWidgets.QApplication([])
-        # raw_image_widget = RawImageGLWidget()
-        # raw_image_widget.setWindowFlags(pg.QtCore.Qt.WindowType.FramelessWindowHint)
-        # raw_image_widget.resize(vscale * self.grid_size_x, vscale * self.grid_size_z)
-        # raw_image_widget.show()
-        # colormap = plt.get_cmap("bwr")
-        # norm = matplotlib.colors.Normalize(vmin=-vminmax, vmax=vminmax)
+        if real_time_animation:
+            vminmax = 1
+            vscale = 1
+            surface_format = pg.QtGui.QSurfaceFormat()
+            surface_format.setSwapInterval(0)
+            pg.QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
+            app = pg.QtWidgets.QApplication([])
+            raw_image_widget = RawImageGLWidget()
+            raw_image_widget.setWindowFlags(pg.QtCore.Qt.WindowType.FramelessWindowHint)
+            raw_image_widget.resize(vscale * self.grid_size_x, vscale * self.grid_size_z)
+            raw_image_widget.show()
+            colormap = plt.get_cmap("bwr")
+            norm = matplotlib.colors.Normalize(vmin=-vminmax, vmax=vminmax)
 
         l2_norm = np.zeros(self.grid_size_shape, dtype=np.float32)
 
@@ -199,23 +180,18 @@ class TimeReversal(SimulationConfig):
                              .reshape(self.grid_size_shape))
 
             # Atualiza a GUI
-            # if not i % self.animation_step:
-            #     raw_image_widget.setImage(colormap(norm(self.p_future.T)), levels=[0, 1])
-            #     app.processEvents()
-            #     plt.pause(1e-12)
+            if real_time_animation:
+                if not i % self.animation_step:
+                    raw_image_widget.setImage(colormap(norm(self.p_future.T)), levels=[0, 1])
+                    app.processEvents()
+                    plt.pause(1e-12)
 
             l2_norm += np.square(self.p_future)
-            #
-            # if i % self.animation_step == 0:
-            #     if create_animation:
-            #         save_imshow(
-            #             data=self.p_future,
-            #             title=f'Time Reversal',
-            #             path=f'{self.animation_folder}/plot_{i}.png',
-            #             scatter_kwargs=scatter_kwargs,
-            #             **plt_kwargs,
-            #         )
-            #
+
+            # Save last 2 frames (for RTM)
+            if i == self.total_time - 1 or i == self.total_time - 2:
+                np.save(f'./TimeReversal/frame_{i}.npy', self.p_future)
+
             if i % 100 == 0:
                 print(f'Time Reversal - i={i}')
 
@@ -224,15 +200,3 @@ class TimeReversal(SimulationConfig):
         l2_norm = np.sqrt(l2_norm)
 
         np.save(f'./TimeReversal/l2_norm.npy', l2_norm)
-
-        # if create_animation:
-        #     create_ffmpeg_animation(self.animation_folder, 'a.mp4', self.tr_total_time, self.animation_step)
-
-    # def setup_folders(self):
-    #     self.folder = './TimeReversal'
-    #     self.animation_folder = f'{self.folder}/animation'
-    #
-    #     os.makedirs(self.folder, exist_ok=True)
-    #     os.makedirs(self.animation_folder, exist_ok=True)
-    #
-    #     clear_folder(self.folder)

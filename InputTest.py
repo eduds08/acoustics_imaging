@@ -1,16 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
+from framework import file_m2k as m2k_handler
+from framework.data_types import DataInsp
 
 
 class InputTest:
     def __init__(self):
         self.bscan = None
-        self.dt = None
-        self.gate_start = None
-        self.microphones_distance = None
         self.total_time = None
+        self.dt = None
+        self.microphones_distance = None
         self.microphones_amount = None
+
+        self.bscan_fmc = None
+        self.fmc_emitter = None
+        self.gate_start = None
 
     def load_data_acude(self, file: str):
         data_acude = loadmat(file)
@@ -23,24 +28,29 @@ class InputTest:
         rep_rate = data_acude['repRate']
         self.dt = np.float32((1 / rep_rate).item())
 
-        self.gate_start = np.float32(0)
+        self.microphones_distance = np.float32(data_acude['dstep'].item())
 
-        self.microphones_distance = np.float32(data_acude['dstep'])
+    def load_data_panther(self, file_m2k: str):
+        data_panther: DataInsp = m2k_handler.read(file_m2k, freq_transd=5, bw_transd=0.5, tp_transd='gaussian', sel_shots=0)
 
-    def load_data_panther(self, folder: str):
-        pass
+        self.bscan_fmc = data_panther.ascan_data[:, :, :, 0].astype(np.float32)
+        self.total_time = np.int32(len(self.bscan_fmc[:, 0, 0]))
+        self.dt = np.float32(data_panther.inspection_params.sample_time * 1e-6)
+        self.microphones_distance = np.float32(data_panther.probe_params.pitch * 1e-3)
+        self.microphones_amount = np.int32(data_panther.probe_params.num_elem)
+        self.gate_start = np.float32(data_panther.inspection_params.gate_start)
 
-        # Add zeros, according to gate_start, to the beginning of array
-        gate_start_value = np.float32(0)
-        if selected_test[0] != './panther/teste7_results':
-            with open(f'{selected_test[0]}/inspection_params.txt', 'r') as f:
-                for line in f:
-                    if line.startswith('gate_start'):
-                        gate_start_value = np.float32(line.split('=')[1].strip())
-                        break
-        padding_zeros = np.int32(gate_start_value / sample_time)
-        padding_zeros = np.zeros((len(recorded_pressure_bscan[:, 0]), padding_zeros))
-        recorded_pressure_bscan = np.hstack((padding_zeros, recorded_pressure_bscan), dtype=np.float32)
+    def select_fmc_emitter(self, microphone_index):
+        self.fmc_emitter = np.int32(microphone_index)
+
+        self.bscan = self.bscan_fmc[:, microphone_index, :].transpose().astype(np.float32)
+
+        padding_zeros = np.int32(self.gate_start / (self.dt * 1e6))
+        padding_zeros = np.zeros((self.microphones_amount, padding_zeros))
+
+        self.bscan = np.hstack((padding_zeros, self.bscan), dtype=np.float32)
+
+        self.total_time = np.int32(len(self.bscan[0, :]))
 
     def select_bscan_interval(self, min_time=None, max_time=None):
         if min_time is None and max_time is not None:

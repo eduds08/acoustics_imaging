@@ -86,18 +86,12 @@ fn forward_diff(@builtin(global_invocation_id) index: vec3<u32>) {
     let z: i32 = i32(index.x);
     let x: i32 = i32(index.y);
 
-    var dp_z: f32 = 0.;
-    var dp_x: f32 = 0.;
-
     if (z + 1 < infoI32.grid_size_z) {
-        dp_z = (p_present[zx(z + 1, x)] - p_present[zx(z, x)]) / infoF32.dz;
+        dp_1_z[zx(z, x)] = (p_present[zx(z + 1, x)] - p_present[zx(z, x)]) / infoF32.dz;
     }
     if (x + 1 < infoI32.grid_size_x) {
-        dp_x = (p_present[zx(z, x + 1)] - p_present[zx(z, x)]) / infoF32.dx;
+        dp_1_x[zx(z, x)] = (p_present[zx(z, x + 1)] - p_present[zx(z, x)]) / infoF32.dx;
     }
-
-    dp_1_z[zx(z, x)] = dp_z;
-    dp_1_x[zx(z, x)] = dp_x;
 }
 
 @compute
@@ -106,18 +100,12 @@ fn backward_diff(@builtin(global_invocation_id) index: vec3<u32>) {
     let z: i32 = i32(index.x);
     let x: i32 = i32(index.y);
 
-    var dp_z: f32 = 0.;
-    var dp_x: f32 = 0.;
-
     if (z - 1 >= 0) {
-        dp_z = (dp_1_z[zx(z, x)] - dp_1_z[zx(z - 1, x)]) / infoF32.dz;
+        dp_2_z[zx(z, x)] = (dp_1_z[zx(z, x)] - dp_1_z[zx(z - 1, x)]) / infoF32.dz;
     }
     if (x - 1 >= 0) {
-        dp_x = (dp_1_x[zx(z, x)] - dp_1_x[zx(z, x - 1)]) / infoF32.dx;
+        dp_2_x[zx(z, x)] = (dp_1_x[zx(z, x)] - dp_1_x[zx(z, x - 1)]) / infoF32.dx;
     }
-
-    dp_2_z[zx(z, x)] = dp_z;
-    dp_2_x[zx(z, x)] = dp_x;
 }
 
 @compute
