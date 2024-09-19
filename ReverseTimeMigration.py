@@ -1,42 +1,43 @@
+import os
 import numpy as np
 from InputTest import InputTest
 from SimulationConfig import SimulationConfig
 from WebGpuHandler import WebGpuHandler
-import pyqtgraph as pg
-from pyqtgraph.widgets.RawImageWidget import RawImageGLWidget
-import matplotlib.pyplot as plt
-import matplotlib
+from functions import create_video, save_rtm_image
 
 
 class ReverseTimeMigration(SimulationConfig):
     def __init__(self, **simulation_config):
         super().__init__(**simulation_config)
 
-        input_test: InputTest = simulation_config['input_test']
+        # Create folders
+        self.folder = './ReverseTimeMigration'
+        self.frames_folder = f'{self.folder}/frames'
+        os.makedirs(self.frames_folder, exist_ok=True)
+        self.tr_folder = './TimeReversal'
 
+        input_test: InputTest = simulation_config['input_test']
+        self.emitter_index = input_test.fmc_emitter
         self.total_time = input_test.total_time
         print(f'Total time: {self.total_time}')
 
-        self.emitter_index = input_test.fmc_emitter
+        # Source
+        self.source = np.load('./source.npy').astype(np.float32)
+        if len(self.source) < self.total_time:
+            self.source = np.pad(self.source, (0, self.total_time - len(self.source)), 'constant').astype(np.float32)
+        elif len(self.source) > self.total_time:
+            self.source = self.source[:self.total_time]
 
-        x = np.linspace(0, self.total_time, self.total_time)
-        sigma = 10
-        mu = 50
-        amplitude = 1
-        self.source = amplitude * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
-        self.source[x < mu - 3 * sigma] = 0
-
-        self.source = np.float32(self.source)
-
-        self.source_z = np.int32(np.load('./TimeReversal/emitter_z.npy'))
-        self.source_x = np.int32(np.load('./TimeReversal/emitter_x.npy'))
+        # Source's position
+        self.source_z = np.int32(np.load(f'{self.tr_folder}/emitter_z.npy'))
+        self.source_x = np.int32(np.load(f'{self.tr_folder}/emitter_x.npy'))
 
         # Up-going pressure fields (Flipped Time Reversal)
         self.p_future_flipped_tr = np.zeros(self.grid_size_shape, dtype=np.float32)
-        self.p_present_flipped_tr = np.load(f'./TimeReversal/frame_{self.total_time - 2}.npy')
-        self.p_past_flipped_tr = np.load(f'./TimeReversal/frame_{self.total_time - 1}.npy')
+        self.p_present_flipped_tr = np.load(f'{self.tr_folder}/second_to_last_frame.npy')
+        self.p_past_flipped_tr = np.load(f'{self.tr_folder}/last_frame.npy')
 
-        # Partial derivatives
+        # Partial derivatives (Flipped Time Reversal)
         self.dp_1_z_flipped_tr = np.zeros(self.grid_size_shape, dtype=np.float32)
         self.dp_1_x_flipped_tr = np.zeros(self.grid_size_shape, dtype=np.float32)
         self.dp_2_z_flipped_tr = np.zeros(self.grid_size_shape, dtype=np.float32)
@@ -52,6 +53,7 @@ class ReverseTimeMigration(SimulationConfig):
         self.is_z_absorption_int_flipped_tr = self.is_z_absorption_int.copy()
         self.is_x_absorption_int_flipped_tr = self.is_x_absorption_int.copy()
 
+        # WebGPU buffer
         self.info_i32 = np.array(
             [
                 self.grid_size_z,
@@ -63,6 +65,7 @@ class ReverseTimeMigration(SimulationConfig):
             dtype=np.int32
         )
 
+        # WebGPU buffer
         self.info_f32 = np.array(
             [
                 self.dz,
@@ -73,19 +76,14 @@ class ReverseTimeMigration(SimulationConfig):
         )
 
         self.wgpu_handler = None
-        self.config_gpu()
+        self.setup_gpu()
 
-    def config_gpu(self):
-        self.wgpu_handler = WebGpuHandler(self.grid_size_z, self.grid_size_x)
+    def setup_gpu(self):
+        self.wgpu_handler = WebGpuHandler(shader_file='./reverse_time_migration.wgsl', wsz=self.grid_size_z, wsx=self.grid_size_x)
 
-        shader_file = open('./reverse_time_migration.wgsl')
-        shader_string = (shader_file.read()
-                         .replace('wsz', f'{self.wgpu_handler.ws[0]}')
-                         .replace('wsx', f'{self.wgpu_handler.ws[1]}'))
-        shader_file.close()
+        self.wgpu_handler.create_shader_module()
 
-        self.wgpu_handler.shader_module = self.wgpu_handler.device.create_shader_module(code=shader_string)
-
+        # Data passed to gpu buffers
         wgsl_data = {
             'infoI32': self.info_i32,
             'infoF32': self.info_f32,
@@ -123,10 +121,9 @@ class ReverseTimeMigration(SimulationConfig):
             'is_x_absorption_flipped_tr': self.is_x_absorption_int_flipped_tr,
         }
 
-        shader_lines = list(shader_string.split('\n'))
-        self.wgpu_handler.create_buffers(wgsl_data, shader_lines)
+        self.wgpu_handler.create_buffers(wgsl_data)
 
-    def run(self, real_time_animation: bool):
+    def run(self, generate_video: bool, animation_step: int):
         compute_forward_diff = self.wgpu_handler.create_compute_pipeline("forward_diff")
         compute_after_forward = self.wgpu_handler.create_compute_pipeline("after_forward")
         compute_backward_diff = self.wgpu_handler.create_compute_pipeline("backward_diff")
@@ -135,22 +132,7 @@ class ReverseTimeMigration(SimulationConfig):
         compute_sim = self.wgpu_handler.create_compute_pipeline("sim")
         compute_incr_time = self.wgpu_handler.create_compute_pipeline("incr_time")
 
-        # GUI (animação)
-        if real_time_animation:
-            vminmax = 1
-            vscale = 1
-            surface_format = pg.QtGui.QSurfaceFormat()
-            surface_format.setSwapInterval(0)
-            pg.QtGui.QSurfaceFormat.setDefaultFormat(surface_format)
-            app = pg.QtWidgets.QApplication([])
-            raw_image_widget = RawImageGLWidget()
-            raw_image_widget.setWindowFlags(pg.QtCore.Qt.WindowType.FramelessWindowHint)
-            raw_image_widget.resize(vscale * self.grid_size_x, vscale * self.grid_size_z)
-            raw_image_widget.show()
-            colormap = plt.get_cmap("bwr")
-            norm = matplotlib.colors.Normalize(vmin=-vminmax, vmax=vminmax)
-
-        accumulated_product = np.zeros_like(self.p_future)
+        accumulated_product = np.zeros(self.grid_size_shape, dtype=np.float32)
 
         for i in range(self.total_time):
             command_encoder = self.wgpu_handler.device.create_command_encoder()
@@ -195,21 +177,25 @@ class ReverseTimeMigration(SimulationConfig):
             self.p_future_flipped_tr = (np.asarray(self.wgpu_handler.device.queue.read_buffer(self.wgpu_handler.buffers['b19']).cast("f"))
                              .reshape(self.grid_size_shape))
 
-            # Atualiza a GUI
-            if real_time_animation:
-                if not i % self.animation_step:
-                    raw_image_widget.setImage(colormap(norm(self.p_future.T)), levels=[0, 1])
-                    app.processEvents()
-                    plt.pause(1e-12)
-
             current_product = self.p_future * self.p_future_flipped_tr
             accumulated_product += current_product
 
-            # Save last frame as .npy
-            if i == self.total_time - 1:
-                np.save(f'./ReverseTimeMigration/frame_{self.emitter_index}.npy', accumulated_product)
+            if generate_video and i % animation_step == 0:
+                save_rtm_image(
+                    upper_left=self.p_future_flipped_tr,
+                    upper_right=current_product,
+                    bottom_left=self.p_future,
+                    bottom_right=accumulated_product,
+                    path=f'{self.frames_folder}/frame_{i}.png'
+                )
 
-            if i % 100 == 0:
+            if i % 300 == 0:
                 print(f'Reverse Time Migration - i={i}')
 
         print('Reverse Time Migration finished.')
+
+        # Save last frame of accumulated_product
+        np.save(f'{self.frames_folder}/accumulated_product_{self.emitter_index}.npy', accumulated_product)
+
+        if generate_video:
+            create_video(total_time=self.total_time, animation_step=animation_step, image_size=self.grid_size_shape, frame_path=self.frames_folder, output_path=f'{self.folder}/rtm_{self.emitter_index}.mp4')

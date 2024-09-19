@@ -2,7 +2,7 @@ import wgpu
 
 
 class WebGpuHandler:
-    def __init__(self, *workgroup_sizes):
+    def __init__(self, shader_file, **workgroup_sizes):
         self.shader_module = None
         self.pipeline_layout = None
         self.bind_groups = None
@@ -10,14 +10,23 @@ class WebGpuHandler:
 
         self.ws = []
 
-        for dim in workgroup_sizes:
+        for k, v in workgroup_sizes.items():
             for i in range(15, 0, -1):
-                if (dim % i) == 0:
+                if (v % i) == 0:
                     self.ws.append(i)
                     break
 
+        shader_file = open(shader_file)
+        self.shader_string = shader_file.read()
+        for idx, k in enumerate(workgroup_sizes.keys()):
+            self.shader_string = self.shader_string.replace(k, f'{self.ws[idx]}')
+        shader_file.close()
+
         # GPU device
         self.device = wgpu.utils.get_default_device()
+
+    def create_shader_module(self):
+        self.shader_module = self.device.create_shader_module(code=self.shader_string)
 
     def create_compute_pipeline(self, entry_point):
         """
@@ -34,14 +43,13 @@ class WebGpuHandler:
             compute={"module": self.shader_module, "entry_point": entry_point}
         )
 
-    def create_buffers(self, data, shader_lines):
+    def create_buffers(self, data):
         """
         Creates a dictionary containing all created buffers.
 
         Arguments:
             data (dict): Dictionary containing any object supporting the Python buffer protocol.
                          It's the data that will be passed to bindings on gpu.
-            shader_lines (list): List of strings where each element is a line of a wgsl file.
 
         Returns:
             dict: Dictionary containing all created buffers. The key is a string named as 'b0', 'b1', etc...
@@ -50,6 +58,8 @@ class WebGpuHandler:
         buffers = dict()
         bind_groups_layouts_entries = dict()
         bind_groups_entries = dict()
+
+        shader_lines = list(self.shader_string.split('\n'))
 
         shader_bindings = read_shader_bindings(shader_lines)
 

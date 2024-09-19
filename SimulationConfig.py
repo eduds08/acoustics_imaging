@@ -3,6 +3,9 @@ import numpy as np
 
 class SimulationConfig:
     def __init__(self, **simulation_config):
+        self.folder = None
+        self.frames_folder = None
+
         self.dt = simulation_config['dt']
 
         self.c = simulation_config['c']
@@ -12,16 +15,12 @@ class SimulationConfig:
 
         self.grid_size_z = simulation_config['grid_size_z']
         self.grid_size_x = simulation_config['grid_size_x']
-
         self.grid_size_shape = (self.grid_size_z, self.grid_size_x)
 
         self.total_time = simulation_config['total_time']
 
-        self.animation_step = simulation_config['animation_step']
-
         print(f'CFL-Z (np.amax(c)): {np.amax(self.c) * (self.dt / self.dz)}')
         print(f'CFL-X (np.amax(c)): {np.amax(self.c) * (self.dt / self.dx)}')
-
         print(f'Grid Size (px): ({self.grid_size_z}, {self.grid_size_x})')
 
         # Pressure fields
@@ -35,7 +34,7 @@ class SimulationConfig:
         self.dp_2_z = np.zeros(self.grid_size_shape, dtype=np.float32)
         self.dp_2_x = np.zeros(self.grid_size_shape, dtype=np.float32)
 
-        # CPML
+        """ CPML """
         self.absorption_layer_size = np.int32(15)
         self.damping_coefficient = np.float32(3e6)
 
@@ -62,6 +61,6 @@ class SimulationConfig:
         self.absorption_x[:, :self.absorption_layer_size] = self.absorption_coefficient[::-1]
         self.absorption_x[:, -self.absorption_layer_size:] = self.absorption_coefficient
 
-        # Goes to GPU
+        # Converts boolean array to int array to pass to GPU
         self.is_z_absorption_int = self.is_z_absorption.astype(np.int32)
         self.is_x_absorption_int = self.is_x_absorption.astype(np.int32)
