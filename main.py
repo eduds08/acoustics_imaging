@@ -68,8 +68,8 @@ elif dados == 'panther':
 
         print(f'Microfone {microphone_index}/63')
 
-        # tr_sim = TimeReversal(**simulation_config)
-        # tr_sim.run(generate_video=False, animation_step=100)
+        tr_sim = TimeReversal(**simulation_config)
+        tr_sim.run(generate_video=False, animation_step=100)
 
         rtm_sim = ReverseTimeMigration(**simulation_config)
         rtm_sim.run(generate_video=True, animation_step=100)
