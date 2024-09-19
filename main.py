@@ -55,12 +55,6 @@ simulation_config.update(tr_config)
 if dados == 'acude':
     tr_sim = TimeReversal(**simulation_config)
     tr_sim.run(real_time_animation=False)
-
-    l2_norm = np.load('./TimeReversal/l2_norm.npy')
-
-    plt.figure()
-    plt.imshow(np.abs(l2_norm), aspect='auto')
-    plt.show()
 elif dados == 'panther':
     for microphone_index in range(input_test.microphones_amount):
         input_test.select_fmc_emitter(microphone_index=microphone_index)
