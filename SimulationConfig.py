@@ -35,7 +35,7 @@ class SimulationConfig:
         self.dp_2_x = np.zeros(self.grid_size_shape, dtype=np.float32)
 
         """ CPML """
-        self.absorption_layer_size = np.int32(15)
+        self.absorption_layer_size = np.int32(5)
         self.damping_coefficient = np.float32(3e6)
 
         x, z = np.meshgrid(np.arange(self.grid_size_x, dtype=np.float32), np.arange(self.grid_size_z, dtype=np.float32))

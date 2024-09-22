@@ -3,33 +3,28 @@ from ReverseTimeMigration import ReverseTimeMigration
 from TimeReversal import TimeReversal
 from InputTest import InputTest
 from functions import plot_l2_norm
+from main_synthetic import microphone_z, microphone_x
 
 # 'panther' ou 'acude'
-dados = 'panther'
+dados = 'acude'
 
 input_test = InputTest()
 
 if dados == 'acude':
     input_test.load_data_acude(file='./acude/azulPerpendicular1_Variables.mat')
     # input_test.plot_bscan()
-    input_test.select_bscan_interval(min_time=None, max_time=45000)
+    input_test.select_bscan_interval(min_time=None, max_time=50000)  # Seleciona a porção do b-scan que deseja simular
     # input_test.plot_bscan()
 elif dados == 'panther':
     input_test.load_data_panther(file_m2k='./arquivos_m2k/teste2_perto_fio_a_esquerda.m2k')
 
-# acude:
-# size_meters_z = np.float32(300)
-# size_meters_x = np.float32(300)
-# dz = np.float32(3e-1)
-# dx = np.float32(3e-1)
-
 # Grid em metros
-size_meters_z = np.float32(40e-3)
-size_meters_x = np.float32(40e-3)  # Não deixar abaixo de 40e-3 para os testes do panther. Os microfones ocupam 38.4e-3 metros.
+size_meters_z = np.float32(45)
+size_meters_x = np.float32(45)  # Não deixar abaixo de 40e-3 para os testes do panther. Os microfones ocupam 38.4e-3 metros.
 
 # Spatial steps (m/px)
-dz = np.float32(2.4e-4)
-dx = np.float32(2.4e-4)
+dz = np.float32(input_test.microphones_distance)
+dx = np.float32(input_test.microphones_distance)
 
 grid_size_z = np.int32(size_meters_z / dz)
 grid_size_x = np.int32(size_meters_x / dx)
@@ -61,7 +56,7 @@ simulation_config.update(tr_config)
 
 if dados == 'acude':
     tr_sim = TimeReversal(**simulation_config)
-    tr_sim.run(generate_video=False, animation_step=100)
+    tr_sim.run(generate_video=True, animation_step=15)
 elif dados == 'panther':
     for microphone_index in range(input_test.microphones_amount):
         input_test.select_fmc_emitter(microphone_index=microphone_index)
@@ -69,7 +64,7 @@ elif dados == 'panther':
         print(f'Microfone {microphone_index}/63')
 
         tr_sim = TimeReversal(**simulation_config)
-        tr_sim.run(generate_video=False, animation_step=100)
+        tr_sim.run(generate_video=False, animation_step=15)
 
         rtm_sim = ReverseTimeMigration(**simulation_config)
-        rtm_sim.run(generate_video=True, animation_step=100)
+        rtm_sim.run(generate_video=True, animation_step=15)

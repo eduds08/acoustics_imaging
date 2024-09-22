@@ -1,39 +1,45 @@
 import numpy as np
 import os
 import re
-from InputTest import InputTest
 from SimulationConfig import SimulationConfig
 from WebGpuHandler import WebGpuHandler
 from functions import save_image, create_video
+import matplotlib.pyplot as plt
 
 
-class TimeReversal(SimulationConfig):
+class SyntheticTimeReversal(SimulationConfig):
     def __init__(self, **simulation_config):
         super().__init__(**simulation_config)
 
+        self.reflector_z, self.reflector_x = np.int32(np.where(self.c == 0))
+        self.reflectors_amount = np.int32(len(self.reflector_z))
+
+        self.c = self.c.copy()
+
+        self.c[self.c == np.float32(0)] = simulation_config['medium_c']
+
         # Create folders
-        self.folder = './TimeReversal'
+        self.folder = './SyntheticTR'
         self.frames_folder = f'{self.folder}/frames'
         os.makedirs(self.frames_folder, exist_ok=True)
+        self.acou_sim_folder = './SyntheticAcouSim'
 
-        input_test: InputTest = simulation_config['input_test']
-        self.bscan = input_test.bscan
-        self.microphones_distance = input_test.microphones_distance
-        self.microphones_amount = input_test.microphones_amount
-        self.total_time = input_test.total_time
-        print(f'Total time: {self.total_time}')
+        self.bscan = np.load(f'{self.acou_sim_folder}/microphones_recording.npy')
 
-        # Microphones' position
-        self.microphone_x = []
-        for rp in range(self.microphones_amount):
-            self.microphone_x.append((self.microphones_distance * rp) / self.dz)
-        self.microphone_x = (np.int32(np.asarray(self.microphone_x))
-                           + np.int32((self.grid_size_x - self.microphone_x[-1]) / 2))
-        self.microphone_z = np.full(self.microphones_amount, 1, dtype=np.int32)  # Não colocar microfones no índice 0.
+        self.microphone_z = simulation_config['microphone_z']
+        self.microphone_x = simulation_config['microphone_x']
+        self.microphones_amount = simulation_config['microphones_amount']
 
-        # Save emitter's position to use as source position in Reverse Time Migration
-        np.save(f'{self.folder}/emitter_z.npy', self.microphone_z[input_test.fmc_emitter])
-        np.save(f'{self.folder}/emitter_x.npy', self.microphone_x[input_test.fmc_emitter])
+        # Source
+        source = np.load('./source.npy').astype(np.float32)
+        if len(source) < self.total_time:
+            source = np.pad(source, (0, self.total_time - len(source)), 'constant').astype(np.float32)
+        elif len(source) > self.total_time:
+            source = source[:self.total_time]
+        source_index = ~np.isclose(source, 0)
+        # Cut the recorded source (when receptor on z=1)
+        if self.microphone_z[0] == 1:
+            self.bscan[:, ~np.isclose(source_index, 0)] = np.float32(0)
 
         # Flip bscan
         self.flipped_bscan = self.bscan[:, ::-1].astype(np.float32)
@@ -88,8 +94,8 @@ class TimeReversal(SimulationConfig):
             'infoI32': self.info_i32,
             'infoF32': self.info_f32,
             'c': self.c,
-            'microphone_z': self.microphone_z,
-            'microphone_x': self.microphone_x,
+            'microphone_z': np.ascontiguousarray(self.microphone_z),
+            'microphone_x': np.ascontiguousarray(self.microphone_x),
             'p_future': self.p_future,
             'p_present': self.p_present,
             'p_past': self.p_past,
@@ -158,7 +164,16 @@ class TimeReversal(SimulationConfig):
                              .reshape(self.grid_size_shape))
 
             if generate_video and i % animation_step == 0:
-                save_image(self.p_future, f'{self.frames_folder}/frame_{i // animation_step}.png')
+                plt.figure()
+                plt.imshow(self.p_future, cmap='viridis')
+                plt.colorbar()
+                plt.scatter(self.reflector_x, self.reflector_z, s=0.05, color='red')
+                plt.grid(True)
+                plt.title(f'Time Reversal - {i}')
+                plt.savefig(f'{self.frames_folder}/frame_{i // animation_step}.png')
+                plt.close()
+
+                # save_image(self.p_future, f'{self.frames_folder}/frame_{i // animation_step}.png')
 
             l2_norm += np.square(self.p_future)
 
