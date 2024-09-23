@@ -5,6 +5,7 @@ from InputTest import InputTest
 from SimulationConfig import SimulationConfig
 from WebGpuHandler import WebGpuHandler
 from functions import save_image, create_video
+import matplotlib.pyplot as plt
 
 
 class TimeReversal(SimulationConfig):
@@ -158,7 +159,14 @@ class TimeReversal(SimulationConfig):
                              .reshape(self.grid_size_shape))
 
             if generate_video and i % animation_step == 0:
-                save_image(self.p_future, f'{self.frames_folder}/frame_{i // animation_step}.png')
+                plt.figure()
+                plt.imshow(self.p_future, cmap='bwr')
+                plt.colorbar()
+                plt.scatter(self.microphone_x, self.microphone_z, s=0.05, color='purple')
+                plt.grid(True)
+                plt.title(f'Time Reversal - {i}')
+                plt.savefig(f'{self.frames_folder}/frame_{i // animation_step}.png')
+                plt.close()
 
             l2_norm += np.square(self.p_future)
 

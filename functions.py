@@ -4,8 +4,24 @@ import ffmpeg
 from matplotlib.image import imread
 
 
+def plot_accumulated_product():
+    accumulated_product = np.load('./SyntheticRTM/accumulated_product_0.npy')
+    for i in range(1, 106):
+        accumulated_product += np.load(f'./SyntheticRTM/accumulated_product_{i}.npy')
+
+    plt.figure()
+    plt.imshow(accumulated_product, aspect='auto')
+    plt.colorbar()
+    plt.grid()
+    plt.title('Accumulated Product - RTM')
+    plt.show()
+
+
 def plot_l2_norm():
     l2_norm = np.load('./TimeReversal/l2_norm.npy')
+
+    # l2_norm[0:40, :] = np.float32(0)
+    # l2_norm[:, 160:195] = np.float32(0)
 
     plt.figure()
     plt.imshow(l2_norm, aspect='auto')

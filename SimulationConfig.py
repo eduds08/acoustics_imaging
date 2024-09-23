@@ -35,12 +35,14 @@ class SimulationConfig:
         self.dp_2_x = np.zeros(self.grid_size_shape, dtype=np.float32)
 
         """ CPML """
-        self.absorption_layer_size = np.int32(5)
+        # self.absorption_layer_size = np.int32(25)
+        self.absorption_layer_size = np.int32(15)
         self.damping_coefficient = np.float32(3e6)
 
         x, z = np.meshgrid(np.arange(self.grid_size_x, dtype=np.float32), np.arange(self.grid_size_z, dtype=np.float32))
 
         # Choose absorbing boundaries
+        # self.is_z_absorption = np.array([False for _ in range(int(self.grid_size_z * self.grid_size_x))]).reshape(self.grid_size_shape)
         self.is_z_absorption = (z > self.grid_size_z - self.absorption_layer_size)
         self.is_x_absorption = (x > self.grid_size_x - self.absorption_layer_size) | (x < self.absorption_layer_size)
 
@@ -56,10 +58,10 @@ class SimulationConfig:
         self.absorption_z = np.ones(self.grid_size_shape, dtype=np.float32)
         self.absorption_x = np.ones(self.grid_size_shape, dtype=np.float32)
 
-        self.absorption_z[:self.absorption_layer_size, :] = self.absorption_coefficient[:, np.newaxis][::-1]
-        self.absorption_z[-self.absorption_layer_size:, :] = self.absorption_coefficient[:, np.newaxis]
-        self.absorption_x[:, :self.absorption_layer_size] = self.absorption_coefficient[::-1]
-        self.absorption_x[:, -self.absorption_layer_size:] = self.absorption_coefficient
+        # self.absorption_z[:self.absorption_layer_size, :] = self.absorption_coefficient[:, np.newaxis][::-1]  # z < layer_size
+        self.absorption_z[-self.absorption_layer_size:, :] = self.absorption_coefficient[:, np.newaxis]  # z > (size_z - layer_size)
+        self.absorption_x[:, :self.absorption_layer_size] = self.absorption_coefficient[::-1]  # x < layer_size
+        self.absorption_x[:, -self.absorption_layer_size:] = self.absorption_coefficient  # x > (size_x - layer_size)
 
         # Converts boolean array to int array to pass to GPU
         self.is_z_absorption_int = self.is_z_absorption.astype(np.int32)

@@ -17,6 +17,8 @@ class SyntheticReverseTimeMigration(SimulationConfig):
 
         self.c[self.c == np.float32(0)] = simulation_config['medium_c']
 
+        self.emitter_index = simulation_config['emitter_index']
+
         # Create folders
         self.folder = './SyntheticRTM'
         self.frames_folder = f'{self.folder}/frames'
@@ -219,7 +221,7 @@ class SyntheticReverseTimeMigration(SimulationConfig):
         print('Reverse Time Migration finished.')
 
         # Save last frame of accumulated_product
-        np.save(f'{self.folder}/accumulated_product.npy', accumulated_product)
+        np.save(f'{self.folder}/accumulated_product_{self.emitter_index}.npy', accumulated_product)
 
         if generate_video:
             create_video(path=self.frames_folder, output_path=f'{self.folder}/rtm.mp4')

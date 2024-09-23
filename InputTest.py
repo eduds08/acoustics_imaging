@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from framework import file_m2k as m2k_handler
 from framework.data_types import DataInsp
+import matplotlib.colors as colors
+
+color = list(colors.TABLEAU_COLORS.values())
 
 
 class InputTest:
@@ -62,12 +65,22 @@ class InputTest:
 
         self.total_time = np.int32(len(self.bscan[0, :]))
 
+    def plot_ascans(self):
+        plt.figure()
+
+        for mic in range(0, self.microphones_amount, 10):
+            plt.plot(self.bscan[mic] + (len(self.bscan[:, 0]) - mic - 1) * 2, label=mic)
+
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
     def plot_bscan(self):
         plt.figure()
         plt.imshow(np.abs(self.bscan), aspect='auto')
         plt.xlabel('Time')
         plt.ylabel('Microphone')
         plt.title(f'B-Scan ({self.microphones_amount}x{self.total_time})')
-        plt.grid()
+        plt.grid(True)
         plt.colorbar()
         plt.show()

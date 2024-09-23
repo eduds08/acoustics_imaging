@@ -30,16 +30,14 @@ class SyntheticTimeReversal(SimulationConfig):
         self.microphone_x = simulation_config['microphone_x']
         self.microphones_amount = simulation_config['microphones_amount']
 
-        # Source
         source = np.load('./source.npy').astype(np.float32)
         if len(source) < self.total_time:
             source = np.pad(source, (0, self.total_time - len(source)), 'constant').astype(np.float32)
         elif len(source) > self.total_time:
             source = source[:self.total_time]
         source_index = ~np.isclose(source, 0)
-        # Cut the recorded source (when receptor on z=1)
-        if self.microphone_z[0] == 1:
-            self.bscan[:, ~np.isclose(source_index, 0)] = np.float32(0)
+        # Cut the recorded source
+        self.bscan[:, ~np.isclose(source_index, 0)] = np.float32(0)
 
         # Flip bscan
         self.flipped_bscan = self.bscan[:, ::-1].astype(np.float32)
@@ -165,9 +163,10 @@ class SyntheticTimeReversal(SimulationConfig):
 
             if generate_video and i % animation_step == 0:
                 plt.figure()
-                plt.imshow(self.p_future, cmap='viridis')
+                plt.imshow(self.p_future, cmap='bwr')
                 plt.colorbar()
-                plt.scatter(self.reflector_x, self.reflector_z, s=0.05, color='red')
+                plt.scatter(self.microphone_x, self.microphone_z, s=0.05, color='purple')
+                plt.scatter(self.reflector_x, self.reflector_z, s=0.05, color='green')
                 plt.grid(True)
                 plt.title(f'Time Reversal - {i}')
                 plt.savefig(f'{self.frames_folder}/frame_{i // animation_step}.png')

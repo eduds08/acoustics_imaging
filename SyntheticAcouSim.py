@@ -138,9 +138,10 @@ class SyntheticAcouSim(SimulationConfig):
 
             if generate_video and i % animation_step == 0:
                 plt.figure()
-                plt.imshow(self.p_future, cmap='viridis')
+                plt.imshow(self.p_future, cmap='bwr')
                 plt.colorbar()
-                plt.scatter(self.reflector_x, self.reflector_z, s=0.05, color='red')
+                plt.scatter(self.microphone_x, self.microphone_z, s=0.05, color='purple')
+                plt.scatter(self.reflector_x, self.reflector_z, s=0.05, color='green')
                 plt.grid(True)
                 plt.title(f'Synthetic Acoustic Sim - {i}')
                 plt.savefig(f'{self.frames_folder}/frame_{i // animation_step}.png')

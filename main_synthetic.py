@@ -6,42 +6,47 @@ from functions import convert_image_to_matrix
 
 c, microphone_z, microphone_x = convert_image_to_matrix('./map.png')
 
+microphone_z[:] = np.int32(1)
+microphones_amount = np.int32(len(microphone_z))
+
 grid_size_z = np.int32(len(c[:, 0]))
 grid_size_x = np.int32(len(c[0, :]))
 grid_size_shape = (grid_size_z, grid_size_x)
 
-dt = np.float32(1e-3)
+dt = np.float32(5e-7)
 
 # Spatial steps (m/px)
-dz = np.float32(np.amax(c) * dt / 0.5)
-dx = np.float32(np.amax(c) * dt / 0.5)
+dz = np.float32(1.5e-3)
+dx = np.float32(1.5e-3)
 
-simulation_config = {
-    'dt': dt,
-    'c': c,
-    'dz': dz,
-    'dx': dx,
-    'grid_size_z': grid_size_z,
-    'grid_size_x': grid_size_x,
-    'total_time': np.int32(1000),
-    'medium_c': np.float32(1500),
-}
+for mic in range(60, 61):
+    simulation_config = {
+        'dt': dt,
+        'c': c,
+        'dz': dz,
+        'dx': dx,
+        'grid_size_z': grid_size_z,
+        'grid_size_x': grid_size_x,
+        'total_time': np.int32(9000),
+        'medium_c': np.float32(1500),
+    }
 
-synthetic_config = {
-    'source_z': microphone_z[0],
-    'source_x': microphone_x[0],
-    'microphones_amount': np.int32(len(microphone_z)),
-    'microphone_z': microphone_z,
-    'microphone_x': microphone_x,
-}
+    synthetic_config = {
+        'source_z': microphone_z[mic],
+        'source_x': microphone_x[mic],
+        'microphones_amount': microphones_amount,
+        'microphone_z': microphone_z,
+        'microphone_x': microphone_x,
+        'emitter_index': int(mic),
+    }
 
-simulation_config.update(synthetic_config)
+    simulation_config.update(synthetic_config)
 
-acou_sim = SyntheticAcouSim(**simulation_config)
-acou_sim.run(generate_video=True, animation_step=15)
+    acou_sim = SyntheticAcouSim(**simulation_config)
+    acou_sim.run(generate_video=True, animation_step=15)
 
-tr_sim = SyntheticTimeReversal(**simulation_config)
-tr_sim.run(generate_video=True, animation_step=15)
+    tr_sim = SyntheticTimeReversal(**simulation_config)
+    tr_sim.run(generate_video=True, animation_step=15)
 
-rtm_sim = SyntheticReverseTimeMigration(**simulation_config)
-rtm_sim.run(generate_video=True, animation_step=15)
+    rtm_sim = SyntheticReverseTimeMigration(**simulation_config)
+    rtm_sim.run(generate_video=True, animation_step=15)
