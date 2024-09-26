@@ -27,7 +27,7 @@ class TimeReversal(SimulationConfig):
         # Microphones' position
         self.microphone_x = []
         for rp in range(self.microphones_amount):
-            self.microphone_x.append((self.microphones_distance * rp) / self.dz)
+            self.microphone_x.append((self.microphones_distance * rp) / self.dx)
         self.microphone_x = (np.int32(np.asarray(self.microphone_x))
                            + np.int32((self.grid_size_x - self.microphone_x[-1]) / 2))
         self.microphone_z = np.full(self.microphones_amount, 1, dtype=np.int32)  # Não colocar microfones no índice 0.

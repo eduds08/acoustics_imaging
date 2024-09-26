@@ -6,7 +6,7 @@ from matplotlib.image import imread
 
 def plot_accumulated_product():
     accumulated_product = np.load('./SyntheticRTM/accumulated_product_0.npy')
-    for i in range(1, 106):
+    for i in range(1, 39):
         accumulated_product += np.load(f'./SyntheticRTM/accumulated_product_{i}.npy')
 
     plt.figure()
@@ -20,8 +20,7 @@ def plot_accumulated_product():
 def plot_l2_norm():
     l2_norm = np.load('./TimeReversal/l2_norm.npy')
 
-    # l2_norm[0:40, :] = np.float32(0)
-    # l2_norm[:, 160:195] = np.float32(0)
+    # l2_norm[0:20, :] = np.float32(0)
 
     plt.figure()
     plt.imshow(l2_norm, aspect='auto')

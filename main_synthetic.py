@@ -7,6 +7,7 @@ from functions import convert_image_to_matrix
 c, microphone_z, microphone_x = convert_image_to_matrix('./map.png')
 
 microphone_z[:] = np.int32(1)
+
 microphones_amount = np.int32(len(microphone_z))
 
 grid_size_z = np.int32(len(c[:, 0]))
@@ -19,7 +20,7 @@ dt = np.float32(5e-7)
 dz = np.float32(1.5e-3)
 dx = np.float32(1.5e-3)
 
-for mic in range(60, 61):
+for mic in range(microphones_amount):
     simulation_config = {
         'dt': dt,
         'c': c,
@@ -42,11 +43,13 @@ for mic in range(60, 61):
 
     simulation_config.update(synthetic_config)
 
+    print(f'Microfone {mic}/{microphones_amount - 1}')
+
     acou_sim = SyntheticAcouSim(**simulation_config)
-    acou_sim.run(generate_video=True, animation_step=15)
+    acou_sim.run(generate_video=False, animation_step=15)
 
     tr_sim = SyntheticTimeReversal(**simulation_config)
-    tr_sim.run(generate_video=True, animation_step=15)
+    tr_sim.run(generate_video=False, animation_step=15)
 
     rtm_sim = SyntheticReverseTimeMigration(**simulation_config)
-    rtm_sim.run(generate_video=True, animation_step=15)
+    rtm_sim.run(generate_video=False, animation_step=15)

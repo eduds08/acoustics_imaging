@@ -4,6 +4,7 @@ from scipy.io import loadmat
 from framework import file_m2k as m2k_handler
 from framework.data_types import DataInsp
 import matplotlib.colors as colors
+from scipy.interpolate import interp1d
 
 color = list(colors.TABLEAU_COLORS.values())
 
@@ -16,20 +17,27 @@ class InputTest:
         self.microphones_distance = None
         self.microphones_amount = None
 
+        self.time = None
+
         self.bscan_fmc = None
         self.fmc_emitter = None
         self.gate_start = None
 
-    def load_data_acude(self, file: str):
+    def load_data_acude(self, file: str, resampled: bool):
         data_acude = loadmat(file)
 
-        self.bscan = data_acude['data'].transpose().astype(np.float32)
+        if resampled:
+            self.bscan = np.load('./acude/bscan_resampled.npy')
+            self.time = np.load('./acude/time_resampled.npy')
+            self.dt = np.float32(self.time[1] - self.time[0])
+        else:
+            self.bscan = data_acude['data'].transpose().astype(np.float32)
+            rep_rate = data_acude['repRate']
+            self.dt = np.float32((1 / rep_rate).item())
+            self.time = data_acude['time'][0].astype(np.float32)
 
         self.total_time = np.int32(len(self.bscan[0, :]))
         self.microphones_amount = np.int32(len(self.bscan[:, 0]))
-
-        rep_rate = data_acude['repRate']
-        self.dt = np.float32((1 / rep_rate).item())
 
         self.microphones_distance = np.float32(data_acude['dstep'].item())
 
@@ -83,4 +91,19 @@ class InputTest:
         plt.title(f'B-Scan ({self.microphones_amount}x{self.total_time})')
         plt.grid(True)
         plt.colorbar()
+        plt.show()
+
+    def resample_bscan(self, dt_new):
+        time_new = np.arange(self.time[0], self.time[-1], dt_new, dtype=np.float32)
+        interpolate_f = interp1d(self.time, self.bscan, kind='cubic')
+        self.bscan = np.float32(interpolate_f(time_new))
+
+        np.save('./acude/bscan_resampled.npy', self.bscan)
+        np.save('./acude/time_resampled.npy', time_new)
+
+    def plot_ascan(self, microphone_index: int):
+        plt.figure()
+        plt.plot(self.bscan[microphone_index])
+        plt.legend()
+        plt.grid(True)
         plt.show()

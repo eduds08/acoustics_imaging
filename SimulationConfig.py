@@ -19,8 +19,7 @@ class SimulationConfig:
 
         self.total_time = simulation_config['total_time']
 
-        print(f'CFL-Z (np.amax(c)): {np.amax(self.c) * (self.dt / self.dz)}')
-        print(f'CFL-X (np.amax(c)): {np.amax(self.c) * (self.dt / self.dx)}')
+        print(f'CFL = {np.amax(self.c) * self.dt * ((1 / self.dz) + (1 / self.dx))}')
         print(f'Grid Size (px): ({self.grid_size_z}, {self.grid_size_x})')
 
         # Pressure fields
