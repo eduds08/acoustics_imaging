@@ -160,7 +160,7 @@ class TimeReversal(SimulationConfig):
 
             if generate_video and i % animation_step == 0:
                 plt.figure()
-                plt.imshow(self.p_future, cmap='bwr')
+                plt.imshow(self.p_future, cmap='viridis', vmax=0.55, vmin=-0.55)
                 plt.colorbar()
                 plt.scatter(self.microphone_x, self.microphone_z, s=0.05, color='purple')
                 plt.grid(True)

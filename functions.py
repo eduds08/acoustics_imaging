@@ -20,7 +20,7 @@ def plot_accumulated_product():
 def plot_l2_norm():
     l2_norm = np.load('./TimeReversal/l2_norm.npy')
 
-    # l2_norm[0:20, :] = np.float32(0)
+    l2_norm[0:25, :] = np.float32(0)
 
     plt.figure()
     plt.imshow(l2_norm, aspect='auto')

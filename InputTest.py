@@ -5,6 +5,7 @@ from framework import file_m2k as m2k_handler
 from framework.data_types import DataInsp
 import matplotlib.colors as colors
 from scipy.interpolate import interp1d
+from signal_processing_functions import *
 
 color = list(colors.TABLEAU_COLORS.values())
 
@@ -18,6 +19,9 @@ class InputTest:
         self.microphones_amount = None
 
         self.time = None
+
+        self.min = None
+        self.max = None
 
         self.bscan_fmc = None
         self.fmc_emitter = None
@@ -66,10 +70,16 @@ class InputTest:
     def select_bscan_interval(self, min_time=None, max_time=None):
         if min_time is None and max_time is not None:
             self.bscan = self.bscan[:, :max_time]
+            self.min = 0
+            self.max = max_time
         elif min_time is not None and max_time is None:
             self.bscan = self.bscan[:, min_time:]
+            self.min = min_time
+            self.max = self.total_time - 1
         elif min_time is not None and max_time is not None:
             self.bscan = self.bscan[:, min_time:max_time]
+            self.min = min_time
+            self.max = max_time
 
         self.total_time = np.int32(len(self.bscan[0, :]))
 
@@ -94,8 +104,8 @@ class InputTest:
         plt.show()
 
     def resample_bscan(self, dt_new):
-        time_new = np.arange(self.time[0], self.time[-1], dt_new, dtype=np.float32)
-        interpolate_f = interp1d(self.time, self.bscan, kind='cubic')
+        time_new = np.arange(self.time[self.min], self.time[self.max], dt_new, dtype=np.float32)
+        interpolate_f = interp1d(self.time[self.min:self.max], self.bscan[:, :], kind='cubic', fill_value="extrapolate")
         self.bscan = np.float32(interpolate_f(time_new))
 
         np.save('./acude/bscan_resampled.npy', self.bscan)
@@ -107,3 +117,15 @@ class InputTest:
         plt.legend()
         plt.grid(True)
         plt.show()
+
+    def process_bscan(self):
+        # Normalize raw B-Scans
+        self.bscan = self.bscan / np.amax(np.abs(self.bscan))
+        # self.bscan = np.array([self.bscan[i] / np.amax(np.abs(self.bscan[i])) for i in range(len(self.bscan))])
+
+        self.bscan = fft(self.bscan)
+
+        # Apply a low pass filter to signal
+        self.bscan = low_pass_filter(self.bscan, sampling_period=self.dt, fc=180)
+
+        self.bscan = self.bscan / np.amax(np.abs(self.bscan))
