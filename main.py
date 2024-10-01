@@ -10,6 +10,7 @@ input_test = InputTest()
 
 if dados == 'acude':
     input_test.load_data_acude(file='./acude/azulPerpendicular1_Variables.mat', resampled=True)
+    # input_test.plot_bscan()
     # input_test.select_bscan_interval(min_time=131500, max_time=141400)
     # input_test.resample_bscan(dt_new=np.float32(3.33e-6))
     input_test.process_bscan()
